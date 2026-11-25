@@ -1,0 +1,54 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:15-alpine
+    container_name: placement_db
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgrespassword
+      POSTGRES_DB: placement_twin
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: placement_backend
+    restart: always
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgresql://postgres:postgrespassword@db:5432/placement_twin
+      - PRIMARY_LLM_PROVIDER=openai
+      - SECRET_KEY=e83a216fcbca253cf91648a73a62886f3b06de15c7a52e9f1a26d70d235c3bc2
+      - PORT=8000
+      - HOST=0.0.0.0
+    depends_on:
+      - db
+    volumes:
+      - ./backend:/app
+      - chroma_data:/app/data/chromadb
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: placement_frontend
+    restart: always
+    ports:
+      - "8501:8501"
+    environment:
+      - BACKEND_API_URL=http://backend:8000
+    depends_on:
+      - backend
+    volumes:
+      - ./frontend:/app
+
+volumes:
+  postgres_data:
+  chroma_data:
